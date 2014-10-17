@@ -9,7 +9,7 @@
       height: 100%;
     }
     circle {
-      fill: black;
+      fill: red;
     }
     svg {
       display: block;
@@ -26,9 +26,9 @@
 
 var width = window.innerWidth;
 var height = window.innerHeight;
-var radius = 5;
+var radius = 10;
 
-var points = d3.range(500).map(function() {
+var points = d3.range(200).map(function() {
   return {
     radius: radius,
     x: Math.random() * width,
@@ -56,7 +56,24 @@ svg.selectAll("circle")
     .data(points)
     .enter()
     .append("circle")
-    .attr("r", function(p) { return p.radius });
+    .attr("r", function(p) { return p.radius })
+    .each(setTransition);
+
+function setTransition() {
+  var c = d3.select(this);
+  (function repeatTransition() {
+    c = c
+      .transition()
+      .style("fill", "yellow")
+      .ease( ["cubic", "quadric"] [Math.round(Math.random())] )
+      .duration(1000 + 1000 * Math.random())
+      .transition()
+      .style("fill", "red")
+      .ease( ["cubic", "quadric"] [Math.round(Math.random())] )
+      .duration(1000 + 1000 * Math.random())
+      .each("end", repeatTransition);
+  })();
+}
 
 force.on("tick", function(e) {
   var q = d3.geom.quadtree(points),

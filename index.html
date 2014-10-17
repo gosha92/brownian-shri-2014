@@ -33,31 +33,21 @@ var points = d3.range(200).map(function() {
     radius: radius,
     x: Math.random() * width,
     y: Math.random() * height,
-    dx: (Math.random() - 0.5) * 15,
-    dy: (Math.random() - 0.5) * 15
+    dx: (Math.random() - 0.5) * 20,
+    dy: (Math.random() - 0.5) * 20
   }
 });
 
-var force = d3.layout.force()
-    .gravity(0)
-    .charge(function(p, i) {return i ? -2000 : 0})
-    .chargeDistance(100)
-    .friction(0)
-    .nodes(points)
-    .size([width, height]);
-
-force.start();
-
 var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height);
+  .attr("width", width)
+  .attr("height", height);
 
 svg.selectAll("circle")
-    .data(points)
-    .enter()
-    .append("circle")
-    .attr("r", function(p) { return p.radius })
-    .each(setTransition);
+  .data(points)
+  .enter()
+  .append("circle")
+  .attr("r", function(p) { return p.radius })
+  .each(setTransition);
 
 function setTransition() {
   var c = d3.select(this);
@@ -75,7 +65,13 @@ function setTransition() {
   })();
 }
 
-force.on("tick", function(e) {
+svg.on("mousemove", function() {
+  var mouse = d3.mouse(this);
+  points[0].px = mouse[0];
+  points[0].py = mouse[1];
+});
+
+d3.timer(function() {
   var q = d3.geom.quadtree(points),
       i = 0,
       n = points.length;
@@ -83,7 +79,7 @@ force.on("tick", function(e) {
   while (++i < n) q.visit(collide(points[i]));
 
   svg.selectAll("circle")
-    .attr("cx", function(p) {
+    .attr("cx", function(p, i) {
       if (p.x - radius < 0) {
         p.x = radius;
         p.dx *= -1;
@@ -95,7 +91,7 @@ force.on("tick", function(e) {
       p.x += p.dx;
       return p.x;
     })
-    .attr("cy", function(p) {
+    .attr("cy", function(p, i) {
       if (p.y - radius < 0) {
         p.y = radius;
         p.dy *= -1;
@@ -107,12 +103,10 @@ force.on("tick", function(e) {
       p.y += p.dy;
       return p.y;
     });
-
-  force.resume();
 });
 
 function collide(node) {
-  var r = node.radius + 16;
+  var r = node.radius + 10;
   var nx1 = node.x - r;
   var nx2 = node.x + r;
   var ny1 = node.y - r;
@@ -122,7 +116,7 @@ function collide(node) {
     var p2 = quad.point;
     if (p2 && (p2 !== p1)) {
       var dist = Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y))
-      if (dist <= radius * 2) {
+      if (dist <= p1.radius + p2.radius) {
         var a = p1.x - p2.x;
         var b = p1.y - p2.y;
         var s1 = (a * b) / (dist * dist);
@@ -134,7 +128,7 @@ function collide(node) {
         p1.dy -= d2;
         p2.dx += d1;
         p2.dy += d2;
-        var c3 = (radius * 2 - dist) / 2;
+        var c3 = (p2.radius * 2 - dist) / 2;
         var c1 = c3 * a / dist;
         var c2 = c3 * b / dist;
         p1.x += c1;

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    circle {
+      fill: black;
+    }
+    svg {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = window.innerWidth;
+var height = window.innerHeight;
+var radius = 5;
+
+var points = d3.range(500).map(function() {
+  return {
+    radius: radius,
+    x: Math.random() * width,
+    y: Math.random() * height,
+    dx: (Math.random() - 0.5) * 15,
+    dy: (Math.random() - 0.5) * 15
+  }
+});
+
+var force = d3.layout.force()
+    .gravity(0)
+    .charge(function(p, i) {return i ? -2000 : 0})
+    .chargeDistance(100)
+    .friction(0)
+    .nodes(points)
+    .size([width, height]);
+
+force.start();
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.selectAll("circle")
+    .data(points)
+    .enter()
+    .append("circle")
+    .attr("r", function(p) { return p.radius });
+
+force.on("tick", function(e) {
+  var q = d3.geom.quadtree(points),
+      i = 0,
+      n = points.length;
+
+  while (++i < n) q.visit(collide(points[i]));
+
+  svg.selectAll("circle")
+    .attr("cx", function(p) {
+      if (p.x - radius < 0) {
+        p.x = radius;
+        p.dx *= -1;
+      }
+      if (p.x + radius > width) {
+        p.x = width - radius;
+        p.dx *= -1;
+      }
+      p.x += p.dx;
+      return p.x;
+    })
+    .attr("cy", function(p) {
+      if (p.y - radius < 0) {
+        p.y = radius;
+        p.dy *= -1;
+      }
+      if (p.y + radius > height) {
+        p.y = height - radius;
+        p.dy *= -1;
+      }
+      p.y += p.dy;
+      return p.y;
+    });
+
+  force.resume();
+});
+
+function collide(node) {
+  var r = node.radius + 16;
+  var nx1 = node.x - r;
+  var nx2 = node.x + r;
+  var ny1 = node.y - r;
+  var ny2 = node.y + r;
+  return function(quad, x1, y1, x2, y2) {
+    var p1 = node;
+    var p2 = quad.point;
+    if (p2 && (p2 !== p1)) {
+      var dist = Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y))
+      if (dist <= radius * 2) {
+        var a = p1.x - p2.x;
+        var b = p1.y - p2.y;
+        var s1 = (a * b) / (dist * dist);
+        var s2 = (a / dist) * (a / dist);
+        var s3 = (b / dist) * (b / dist);
+        var d1 = p1.dy * s1 + p1.dx * s2 - p2.dy * s1 - p2.dx * s2;
+        var d2 = p1.dx * s1 + p1.dy * s3 - p2.dx * s1 - p2.dy * s3;
+        p1.dx -= d1;
+        p1.dy -= d2;
+        p2.dx += d1;
+        p2.dy += d2;
+        var c3 = (radius * 2 - dist) / 2;
+        var c1 = c3 * a / dist;
+        var c2 = c3 * b / dist;
+        p1.x += c1;
+        p1.y += c2;
+        p2.x -= c1;
+        p2.y -= c2;
+      }
+    }
+    return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+  };
+}
+
+</script>
+
+</body>
+</html>

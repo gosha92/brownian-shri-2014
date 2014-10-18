@@ -26,29 +26,46 @@
 
 var width = window.innerWidth;
 var height = window.innerHeight;
-var radius = 10;
+var radius = 7;
+var speed = 15;
 
+// Точки
 var points = d3.range(200).map(function() {
   return {
     radius: radius,
     x: Math.random() * width,
     y: Math.random() * height,
-    dx: (Math.random() - 0.5) * 20,
-    dy: (Math.random() - 0.5) * 20
+    dx: (Math.random() - 0.5) * speed,
+    dy: (Math.random() - 0.5) * speed
   }
 });
+// Отталкивающая точка
+var gravityPoint = points[0];
+points[0].fixed = true;
+points[0].radius = 0;
 
+// Force layout
+var force = d3.layout.force()
+    .gravity(0)
+    .charge(function(d, i) { return i ? 0 : -80000; })
+    .nodes(points)
+    .friction(0.15)
+    .size([width, height])
+    .start();
+
+// Добавляем svg
 var svg = d3.select("body").append("svg")
   .attr("width", width)
   .attr("height", height);
 
+// Добавляем круги
 svg.selectAll("circle")
-  .data(points)
+  .data(points.slice(1))
   .enter()
   .append("circle")
   .attr("r", function(p) { return p.radius })
   .each(setTransition);
-
+// Устанавливаем изменение цвета
 function setTransition() {
   var c = d3.select(this);
   (function repeatTransition() {
@@ -65,48 +82,58 @@ function setTransition() {
   })();
 }
 
+// Перемещение точки с гравитацией
 svg.on("mousemove", function() {
   var mouse = d3.mouse(this);
-  points[0].px = mouse[0];
-  points[0].py = mouse[1];
+  gravityPoint.px = mouse[0];
+  gravityPoint.py = mouse[1];
 });
 
-d3.timer(function() {
-  var q = d3.geom.quadtree(points),
-      i = 0,
-      n = points.length;
-
-  while (++i < n) q.visit(collide(points[i]));
-
+// Таймер
+force.on("tick", function() {
+  var q = d3.geom.quadtree(points);
+  var n = points.length;
+  // Столкновения точек друг с другом
+  for (var i = 0; i < n; ++i) q.visit(collide(points[i]));
+  // Столкновения точек со стенами
   svg.selectAll("circle")
     .attr("cx", function(p, i) {
-      if (p.x - radius < 0) {
+      // Столкновение LEFT
+      if (p.x <= radius) {
         p.x = radius;
         p.dx *= -1;
       }
-      if (p.x + radius > width) {
+      // Столкновение RIGHT
+      if (p.x >= width - radius) {
         p.x = width - radius;
         p.dx *= -1;
       }
+      // Движение
       p.x += p.dx;
       return p.x;
     })
     .attr("cy", function(p, i) {
-      if (p.y - radius < 0) {
+      // Столкновение UP
+      if (p.y <= radius) {
         p.y = radius;
         p.dy *= -1;
       }
-      if (p.y + radius > height) {
+      // Столкновение DOWN
+      if (p.y >= height - radius) {
         p.y = height - radius;
         p.dy *= -1;
       }
+      // Движение
       p.y += p.dy;
       return p.y;
     });
+  // Restart timer
+  force.resume();
 });
 
+// Столкновения
 function collide(node) {
-  var r = node.radius + 10;
+  var r = node.radius + radius;
   var nx1 = node.x - r;
   var nx2 = node.x + r;
   var ny1 = node.y - r;
@@ -116,25 +143,25 @@ function collide(node) {
     var p2 = quad.point;
     if (p2 && (p2 !== p1)) {
       var dist = Math.sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y))
-      if (dist <= p1.radius + p2.radius) {
-        var a = p1.x - p2.x;
-        var b = p1.y - p2.y;
-        var s1 = (a * b) / (dist * dist);
-        var s2 = (a / dist) * (a / dist);
-        var s3 = (b / dist) * (b / dist);
-        var d1 = p1.dy * s1 + p1.dx * s2 - p2.dy * s1 - p2.dx * s2;
-        var d2 = p1.dx * s1 + p1.dy * s3 - p2.dx * s1 - p2.dy * s3;
-        p1.dx -= d1;
-        p1.dy -= d2;
-        p2.dx += d1;
-        p2.dy += d2;
-        var c3 = (p2.radius * 2 - dist) / 2;
-        var c1 = c3 * a / dist;
-        var c2 = c3 * b / dist;
-        p1.x += c1;
-        p1.y += c2;
-        p2.x -= c1;
-        p2.y -= c2;
+      if (dist <= radius * 2) {
+          var a = p1.x - p2.x;
+          var b = p1.y - p2.y;
+          var s1 = (a * b) / (dist * dist);
+          var s2 = (a / dist) * (a / dist);
+          var s3 = (b / dist) * (b / dist);
+          var d1 = p1.dy * s1 + p1.dx * s2 - p2.dy * s1 - p2.dx * s2;
+          var d2 = p1.dx * s1 + p1.dy * s3 - p2.dx * s1 - p2.dy * s3;
+          p1.dx -= d1;
+          p1.dy -= d2;
+          p2.dx += d1;
+          p2.dy += d2;
+          var c3 = (radius * 2 - dist) / 2;
+          var c1 = c3 * a / dist;
+          var c2 = c3 * b / dist;
+          p1.x += c1;
+          p1.y += c2;
+          p2.x -= c1;
+          p2.y -= c2;
       }
     }
     return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;

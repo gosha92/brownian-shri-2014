@@ -47,7 +47,8 @@ points[0].radius = 0;
 // Force layout
 var force = d3.layout.force()
     .gravity(0)
-    .charge(function(d, i) { return i ? 0 : -80000; })
+    .charge(function(d, i) { return i ? 0 : -50000; })
+    .chargeDistance(250)
     .nodes(points)
     .friction(0.15)
     .size([width, height])
